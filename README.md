@@ -13,7 +13,7 @@ Fork of [zai-org/ZCode](https://github.com/zai-org/ZCode), based on v3.15.1.
 Get the installer from [Releases](https://github.com/nasone32/ZCode/releases), then on Debian/Ubuntu:
 
 ```bash
-sudo apt install ./ZCode\ Preview-3.15.1-linux-amd64.deb
+sudo apt install ./ZCode-Preview-3.15.1-linux-amd64.deb
 ```
 
 An AppImage is also available (`chmod +x` it, then run).
