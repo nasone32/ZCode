@@ -173,7 +173,13 @@ it.each([
     // 业务 JWT 到期后即使 PAT 仍有效，也不能把临时故障当作成功。
     vi.setSystemTime(start + 600_000);
   }
-  await expect(resolver.resolve(input)).rejects.toThrow("project_token_login_failed");
+  // z/login 持续失败（登录态过旧）不再整体失败：降级用 OAuth token 直连 biz 换 PAT。
+  await expect(resolver.resolve(input)).resolves.toBe("valid-pat");
+  expect(observe).toHaveBeenCalledWith({
+    family: "zai",
+    stage: "resolve",
+    code: "project_token_login_fallback",
+  });
   recovered = true;
   await expect(resolver.resolve(input)).resolves.toBe("valid-pat");
   expect(JSON.stringify(observe.mock.calls)).not.toMatch(/secret|business-jwt|valid-pat|oauth/);

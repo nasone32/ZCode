@@ -577,7 +577,7 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
         parsed.positionals.slice(1),
       );
     case "logout":
-      return await runLogoutCommand(ctx, options, commandDeps);
+      return await runLogoutCommand(ctx, options, commandDeps, parsed.positionals.slice(1));
     case "commands":
       return await runCommandsCommand(ctx, options, commandDeps, parsed.positionals.slice(1));
     case "plugin":

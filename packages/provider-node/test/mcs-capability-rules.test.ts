@@ -49,6 +49,7 @@ describe("MCS published capability boundaries", () => {
       }
     }
     for (const provider of release.config.providerConfigRules.providerRules) {
+      if (provider.config.access.type !== "zhipu-account") continue;
       const { api } = provider.config;
       const config = rules.resolve({
         providerId: provider.providerId,

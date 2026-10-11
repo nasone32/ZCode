@@ -19,6 +19,10 @@ import { createNodeContextSourceAdapter } from "@zcode/adapters/context";
 import { createNodeSkillAdapter } from "@zcode/adapters/skills";
 import { createMcpAdapter } from "@zcode/adapters/mcp";
 import {
+  createChatGptRequestAuthSource,
+  createSharedZCodeCredentialStore,
+} from "@zcode/adapters/auth";
+import {
   AgentRuntime,
   normalizeAgentProfiles,
   PermissionService,
@@ -590,6 +594,12 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
     providerModelRuntime = new ApiProviderModelRuntime({
       registry: options.providerRegistry,
       modelAdapter,
+      // ChatGPT OAuth：openai-oauth Provider 的兜底请求鉴权 Source（读取本机
+      // 加密凭据并按需刷新 access token）。执行作用域未显式提供 source 时启用。
+      chatGptRequestAuthSource: createChatGptRequestAuthSource({
+        env: options.env ?? process.env,
+        store: createSharedZCodeCredentialStore({ env: { ...(options.env ?? process.env) } }),
+      }),
     });
     providerModelRuntime.start();
     // model factory 提前到三条 workflow child 装配线之前构造：script workflow bridge、dwf actor

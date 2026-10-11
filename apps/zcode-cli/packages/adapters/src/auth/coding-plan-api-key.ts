@@ -130,12 +130,15 @@ export function createCodingPlanApiKeyResolver(
                 }),
               )
               .catch(() => {
+                // z/login 拒发业务 JWT（登录态过旧，"Z.ai user information is invalid"）
+                // 不代表凭据失效：biz 接口仍接受 OAuth access token 本体。降级直连换
+                // PAT；凭据整体失效会在 biz 401 处照常报错。
                 options.observe?.({
                   family: input.family,
                   stage: "resolve",
-                  code: "project_token_login_failed",
+                  code: "project_token_login_fallback",
                 });
-                throw new CodingPlanApiKeyError("project_token_login_failed");
+                return undefined;
               })
           : undefined;
       if (generation !== capturedGeneration)

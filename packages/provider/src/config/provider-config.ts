@@ -4,6 +4,7 @@ import type { z } from "zod";
 import {
   completeApiKeyAccessDataSchema,
   completeZhipuAccountAccessDataSchema,
+  completeOpenAiOAuthAccessDataSchema,
   completeProviderApiDataSchema,
   completeProviderConfigDataSchema,
   type providerApiTypeDataSchema,
@@ -13,6 +14,7 @@ import {
   type providerLogoDataSchema,
   type apiKeyAccessDataSchema,
   type zhipuAccountAccessDataSchema,
+  type openAiOAuthAccessDataSchema,
   type providerAccessDataSchema,
   type providerApiDataSchema,
   type providerConfigDataSchema,
@@ -111,7 +113,45 @@ export class ZhipuAccountAccessConfig extends ConfigOverlay<ZhipuAccountAccessCo
   }
 }
 
-export type ProviderAccessConfig = ApiKeyAccessConfig | ZhipuAccountAccessConfig;
+export type OpenAiOAuthAccessConfigInput = Omit<OpenAiOAuthAccessConfigObject, "type">;
+
+export type OpenAiOAuthAccessConfigObject = Readonly<z.infer<typeof openAiOAuthAccessDataSchema>>;
+
+/** ChatGPT OAuth 访问只携带 entitlement 投影；token 属于本机加密凭据，不进 Config。 */
+export class OpenAiOAuthAccessConfig extends ConfigOverlay<OpenAiOAuthAccessConfig> {
+  readonly type = "openai-oauth" as const;
+  readonly entitled?: OpenAiOAuthAccessConfigInput["entitled"];
+
+  constructor(input: OpenAiOAuthAccessConfigInput = {}) {
+    super();
+    this.entitled = input.entitled;
+    Object.freeze(this);
+  }
+
+  overlay(next: OpenAiOAuthAccessConfig): OpenAiOAuthAccessConfig {
+    return new OpenAiOAuthAccessConfig({
+      entitled: this.overlayValue(this.entitled, next.entitled),
+    });
+  }
+
+  validateComplete(path: readonly string[] = []): readonly ConfigValidationIssue[] {
+    return validateConfigSchema(completeOpenAiOAuthAccessDataSchema, this.toJSON(), path);
+  }
+
+  toJSON(): OpenAiOAuthAccessConfigObject {
+    return {
+      type: this.type,
+      ...objectWithoutUndefined({
+        entitled: this.entitled,
+      }),
+    };
+  }
+}
+
+export type ProviderAccessConfig =
+  | ApiKeyAccessConfig
+  | ZhipuAccountAccessConfig
+  | OpenAiOAuthAccessConfig;
 
 export type ProviderAccessConfigObject = Readonly<z.infer<typeof providerAccessDataSchema>>;
 
@@ -505,6 +545,8 @@ function overlayProviderAccess(
       return current.overlay(next as ApiKeyAccessConfig);
     case "zhipu-account":
       return current.overlay(next as ZhipuAccountAccessConfig);
+    case "openai-oauth":
+      return current.overlay(next as OpenAiOAuthAccessConfig);
   }
 }
 

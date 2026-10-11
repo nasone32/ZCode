@@ -1,6 +1,10 @@
 import { ModelErrorCode, ModelFailureReason, type Logger } from "@zcode/contracts";
 import { isProviderBusinessError } from "./model-execution.js";
-import { findProviderBusinessError, type ClassifiedModelFailure } from "./failure-classifier.js";
+import {
+  findProviderBusinessError,
+  isClientSigningLifecycleError,
+  type ClassifiedModelFailure,
+} from "./failure-classifier.js";
 import { readMappedAiSdkProviderBusinessError } from "./failure-ai-sdk-provider-error.js";
 import { unwrapRetryError } from "./failure-inspection.js";
 import {
@@ -177,6 +181,9 @@ function modelFailureSource(
 ): ModelErrorSourceType {
   const reason = failure.reason;
   if (reason === ModelFailureReason.Cancelled) return ModelErrorSource.Runtime;
+  // 签名器 disposed 是客户端组件的生命周期竞态；即使发生在 stream 阶段，
+  // 也不是 provider 的错，按 runtime 归因，避免生产日志误导排障。
+  if (isClientSigningLifecycleError(error)) return ModelErrorSource.Runtime;
   if (
     reason === ModelFailureReason.NetworkError ||
     reason === ModelFailureReason.ProxyError ||

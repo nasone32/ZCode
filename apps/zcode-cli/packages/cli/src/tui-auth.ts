@@ -4,6 +4,9 @@ import type { RunDependencies } from "./cli-types.js";
 import type {
   CommandCenterApiKeyOptions,
   CommandCenterBigmodelLoginOptions,
+  CommandCenterChatGptLoginOptions,
+  CommandCenterChatGptLoginResult,
+  CommandCenterChatGptLogoutResult,
   CommandCenterLoginOptions,
 } from "./command-center/types.js";
 
@@ -56,6 +59,57 @@ export async function loginBigmodelForTui(
     env,
     onAuthorizeUrl: options?.onAuthorizeUrl,
   });
+}
+
+export async function loginChatGptForTui(
+  deps: RunDependencies,
+  options?: CommandCenterChatGptLoginOptions,
+): Promise<CommandCenterChatGptLoginResult> {
+  const env = deps.env ?? process.env;
+  const workingDirectory = (deps.cwd ?? process.cwd)();
+  const dotenvResult = (deps.loadDotenv ?? loadCliDotenv)({
+    cwd: workingDirectory,
+    env,
+  });
+
+  if (dotenvResult.error) {
+    throw new Error(`Failed to load environment file: ${dotenvResult.path}`, {
+      cause: dotenvResult.error,
+    });
+  }
+
+  const login = deps.loginChatGptCli ?? (await loadBootstrapModule()).loginChatGptCli;
+  const result = await login({
+    abortSignal: options?.abortSignal,
+    env,
+    onAuthorizeUrl: options?.onAuthorizeUrl,
+  });
+  return {
+    account: result.account,
+    ...(result.browser ? { browser: result.browser } : {}),
+    credentialsPath: result.credentialsPath,
+    models: result.models,
+  };
+}
+
+export async function logoutChatGptForTui(
+  deps: RunDependencies,
+): Promise<CommandCenterChatGptLogoutResult> {
+  const env = deps.env ?? process.env;
+  const workingDirectory = (deps.cwd ?? process.cwd)();
+  const dotenvResult = (deps.loadDotenv ?? loadCliDotenv)({
+    cwd: workingDirectory,
+    env,
+  });
+
+  if (dotenvResult.error) {
+    throw new Error(`Failed to load environment file: ${dotenvResult.path}`, {
+      cause: dotenvResult.error,
+    });
+  }
+
+  const logout = deps.logoutChatGptCli ?? (await loadBootstrapModule()).logoutChatGptCli;
+  return await logout({ env });
 }
 
 export async function configureApiKeyForTui(

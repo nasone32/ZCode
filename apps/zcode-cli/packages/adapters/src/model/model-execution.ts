@@ -26,6 +26,7 @@ import { createAnthropicCompatFetch } from "./anthropic-stream-compat.js";
 import { createModelRequestSecurityState } from "./request-security-edition/index.js";
 import type { ModelRequestSecurityState, ModelRequestSecurityPort } from "./request-security.js";
 import { createOpenAIResponsesJsonCompatFetch } from "./openai-responses-json-compat.js";
+import { createChatGptResponsesCompatFetch } from "./chatgpt-responses-compat.js";
 import { createModelOptionMapFetch, type RawRequestBodyCapture } from "./model-option-map-fetch.js";
 import { createNetworkProxyFetch } from "../network/proxy-fetch.js";
 import { createProviderEndpointRoutingFetch } from "./provider-endpoint-routing-fetch.js";
@@ -303,15 +304,19 @@ export class AiSdkModelExecution {
       providerId,
       providerKind: providerConfig.kind,
     });
+    // ChatGPT 计划用量（openai-oauth）要求 store:false/stream:true 且不支持
+    // max_output_tokens 等字段；必须在 option-map 之后清理，故插在 optionFetch 内层。
+    const compatFetch =
+      providerConfig.access?.type === "openai-oauth" ? createChatGptResponsesCompatFetch(fetch) : fetch;
     const optionFetch =
       optionMaps && optionValues
         ? createModelOptionMapFetch({
             capture: rawRequestBodyCapture,
-            fetch,
+            fetch: compatFetch,
             maps: optionMaps,
             values: optionValues,
           })
-        : fetch;
+        : compatFetch;
 
     switch (providerConfig.kind) {
       case "openai": {
@@ -385,9 +390,12 @@ function toAiSdkProviderConfig(
   config: RegistryProviderConfig,
 ): AiSdkProviderConfig {
   const common = {
-    ...(config.access.type !== "zhipu-account" && config.access.apiKey
-      ? { apiKey: config.access.apiKey }
-      : {}),
+    ...(
+      (config.access.type === "api-key" || config.access.type === "zhipu-coding-plan-api-key") &&
+      config.access.apiKey
+        ? { apiKey: config.access.apiKey }
+        : {}
+    ),
     baseURL: config.api.baseUrl,
     ...(config.api.headers ? { headers: { ...config.api.headers } } : {}),
     providerOptions: { apiFormat: config.api.type },
@@ -412,7 +420,7 @@ function applyModelRequestAuth(
   const staticHeaders = withoutRequestVerificationHeaders(providerConfig.headers);
   // 账号动态身份头必须先清理静态认证头，避免 SDK 优先使用旧凭据。
   const headers =
-    providerConfig.access.type === "zhipu-account"
+    providerConfig.access.type === "zhipu-account" || providerConfig.access.type === "openai-oauth"
       ? withoutModelAuthHeaders(staticHeaders)
       : staticHeaders;
   return {

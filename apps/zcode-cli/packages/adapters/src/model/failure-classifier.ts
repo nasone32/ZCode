@@ -180,6 +180,21 @@ export function classifyModelFailure(
     };
   }
 
+  // 客户端签名器生命周期错误（如 "Client request signer has been disposed"）：
+  // 本地 runtime 组件的瞬态竞态，无 HTTP status / provider code，此前落入最终
+  // fallback 被判 retryable=false，直接杀死 subagent。按定义客户端可重试。
+  if (isClientSigningLifecycleError(unwrapped)) {
+    return {
+      code: ModelErrorCode.ModelRequestFailed,
+      message: readErrorMessage(unwrapped) ?? "Model request failed.",
+      reason: ModelFailureReasonValue.ServerError,
+      retryReason: ModelRetryReasonValue.ServerError,
+      retryable: true,
+      retryAfterMs,
+      statusCode,
+    };
+  }
+
   if (statusCode === 429) {
     return {
       code: ModelErrorCode.ModelRateLimited,
@@ -487,6 +502,50 @@ export function findProviderBusinessError(
   // 若只看外层 APICallError，会丢掉 providerCode/message/responseHeaders。
   const cause = (error as { cause?: unknown }).cause;
   return cause && cause !== error ? findProviderBusinessError(cause, seen) : undefined;
+}
+
+/** 客户端请求签名器（V4 signer）生命周期错误的稳定 name。 */
+const CLIENT_SIGNING_ERROR_NAME = "ClientRequestSigningV4Error";
+const SIGNER_LIFECYCLE_MESSAGE_PATTERN = /request signer/i;
+const SIGNER_LIFECYCLE_STATE_PATTERN = /disposed|released|closed/i;
+
+/**
+ * 识别“本地请求签名器已被销毁/关闭”家族的错误（闭源 signer 的瞬态竞态）。
+ *
+ * 生产链路里它被包在 AiSdkModelAdapterError 的 cause 深处，无 HTTP status；
+ * 沿 cause 递归（WeakSet 防环），匹配 error.name 或消息形态
+ * （`request signer` + `disposed|released|closed`）。
+ */
+export function isClientSigningLifecycleError(error: unknown): boolean {
+  return findClientSigningLifecycleError(error) !== undefined;
+}
+
+function findClientSigningLifecycleError(
+  error: unknown,
+  seen = new WeakSet<object>(),
+): Error | undefined {
+  if (error === null || typeof error !== "object" || seen.has(error)) {
+    return undefined;
+  }
+  seen.add(error);
+
+  if (error instanceof Error) {
+    if (error.name === CLIENT_SIGNING_ERROR_NAME) return error;
+    if (
+      SIGNER_LIFECYCLE_MESSAGE_PATTERN.test(error.message) &&
+      SIGNER_LIFECYCLE_STATE_PATTERN.test(error.message)
+    ) {
+      return error;
+    }
+  }
+
+  const cause = (error as { cause?: unknown }).cause;
+  return cause && cause !== error ? findClientSigningLifecycleError(cause, seen) : undefined;
+}
+
+function readErrorMessage(error: unknown): string | undefined {
+  const signer = findClientSigningLifecycleError(error);
+  return signer?.message;
 }
 
 function normalizeProviderCode(value: ProviderBusinessError["providerCode"]): string | undefined {

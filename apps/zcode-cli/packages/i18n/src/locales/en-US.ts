@@ -132,6 +132,14 @@ Slash Commands:
           primary: "Z.AI Coding Plan",
           secondary: "Open browser login and create a Coding Plan API key.",
         },
+        chatgptOauth: {
+          pendingPrimary: "Waiting for ChatGPT authorization",
+          pendingSecondary:
+            "Complete sign-in in your browser. I will continue when authorization finishes.",
+          primary: "Continue with ChatGPT",
+          secondary:
+            "Use your ChatGPT Plus/Pro plan in ZCode. No API key required.",
+        },
       },
       pending: {
         cancelStatus: "Login cancelled. Choose a setup method.",

@@ -325,6 +325,78 @@ for (const code of ["engine_overloaded_error", "overloaded_error"]) {
   PROVIDER_BUSINESS_CODE_MAPPINGS.set(code, RETRYABLE_OVERLOAD_MAPPING);
 }
 
+// Sign in with ChatGPT（OpenAI token sharing）计划用量错误，来自官方
+// errors-and-recovery 文档：httpStatus 决定语义，code 决定处置；不得静默换计费路径。
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("subscription_sharing_usage_limit_exceeded", {
+  code: ModelErrorCode.ModelRateLimited,
+  message:
+    "ChatGPT usage limit reached. Your plan allowance is shared across all apps using the ChatGPT plan; check https://chatgpt.com/settings/usage and retry after it resets.",
+  reason: ModelFailureReasonValue.RateLimited,
+  retryReason: ModelRetryReasonValue.RateLimited,
+  retryable: false,
+});
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("subscription_sharing_user_not_eligible", {
+  code: ModelErrorCode.ModelRequestFailed,
+  message:
+    "This ChatGPT account is not eligible for plan-based usage in ZCode. See https://developers.openai.com/siwc/token-sharing-open-source for eligibility details.",
+  reason: ModelFailureReasonValue.InvalidRequest,
+  retryReason: ModelRetryReasonValue.NetworkError,
+  retryable: false,
+});
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("subscription_sharing_unsupported_capability", {
+  code: ModelErrorCode.ModelRequestFailed,
+  message:
+    "The ChatGPT plan does not support this capability (input, tool, model, or option). Remove the unsupported element and retry.",
+  reason: ModelFailureReasonValue.InvalidRequest,
+  retryReason: ModelRetryReasonValue.NetworkError,
+  retryable: false,
+});
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("subscription_sharing_route_not_supported", {
+  code: ModelErrorCode.ModelRequestFailed,
+  message: "The ChatGPT plan only supports POST /v1/responses for inference.",
+  reason: ModelFailureReasonValue.InvalidRequest,
+  retryReason: ModelRetryReasonValue.NetworkError,
+  retryable: false,
+});
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("subscription_sharing_invalid_user", {
+  code: ModelErrorCode.ProviderNotConfigured,
+  message: "ChatGPT credentials were rejected. Sign in again with `zcode login chatgpt`.",
+  reason: ModelFailureReasonValue.AuthFailed,
+  retryReason: ModelRetryReasonValue.AuthRefresh,
+  retryable: false,
+});
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("chatpass_v2_scope_not_authorized", {
+  code: ModelErrorCode.ProviderNotConfigured,
+  message:
+    "The ChatGPT connection lost token-sharing permission. Sign in again and allow token sharing (`zcode login chatgpt`).",
+  reason: ModelFailureReasonValue.AuthFailed,
+  retryReason: ModelRetryReasonValue.AuthRefresh,
+  retryable: false,
+});
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("chatpass_v2_invalid_authorization_context", {
+  code: ModelErrorCode.ProviderNotConfigured,
+  message:
+    "The ChatGPT connection is no longer valid for this account. Sign in again with `zcode login chatgpt`.",
+  reason: ModelFailureReasonValue.AuthFailed,
+  retryReason: ModelRetryReasonValue.AuthRefresh,
+  retryable: false,
+});
+// 503 类：保留凭据、有界退避重试（官方 errors-and-recovery）。
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("subscription_sharing_usage_unavailable", {
+  code: ModelErrorCode.ModelRequestFailed,
+  message: "ChatGPT plan usage is temporarily unavailable; retrying with backoff.",
+  reason: ModelFailureReasonValue.ServerError,
+  retryReason: ModelRetryReasonValue.ServerError,
+  retryable: true,
+});
+PROVIDER_BUSINESS_CODE_MAPPINGS.set("subscription_sharing_user_unavailable", {
+  code: ModelErrorCode.ModelRequestFailed,
+  message: "ChatGPT account information is temporarily unavailable; retrying with backoff.",
+  reason: ModelFailureReasonValue.ServerError,
+  retryReason: ModelRetryReasonValue.ServerError,
+  retryable: true,
+});
+
 export function getProviderBusinessCodeMapping(
   providerCode: string,
 ): ProviderBusinessCodeMapping | undefined {

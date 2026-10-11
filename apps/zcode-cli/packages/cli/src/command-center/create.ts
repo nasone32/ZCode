@@ -28,6 +28,8 @@ import { isWorkflowModeEnabled, WORKFLOW_DISABLED_NOTICE } from "../workflow-mod
 import {
   buildLoginSelection,
   emitLoginAuthorizeMessage,
+  formatChatGptLoginResult,
+  formatChatGptLogoutResult,
   formatLoginResult,
   formatProviderSetupResult,
   loginSetupResponse,
@@ -145,6 +147,32 @@ export function createCommandCenter(deps: CommandCenterDeps): TuiSubmitPrompt {
           };
         }
 
+        if (command.args === "chatgpt") {
+          if (!deps.loginChatGpt) {
+            return {
+              mode: deps.getMode?.(),
+              response: "ChatGPT login is not available in this client.",
+            };
+          }
+
+          const result = await deps.loginChatGpt({
+            abortSignal: options.abortSignal,
+            onAuthorizeUrl: async (data) => {
+              await emitLoginAuthorizeMessage(
+                options,
+                data.authorize_url,
+                "ChatGPT",
+                await deps.getApp(),
+              );
+            },
+          });
+          return {
+            loginRequired: false,
+            mode: deps.getMode?.(),
+            response: formatChatGptLoginResult(result),
+          };
+        }
+
         const apiKeyCommand = parseApiKeyLoginArgs(command.args);
         if (apiKeyCommand) {
           if (!deps.configureApiKey) {
@@ -175,15 +203,28 @@ export function createCommandCenter(deps: CommandCenterDeps): TuiSubmitPrompt {
         return {
           mode: deps.getMode?.(),
           response:
-            "Usage: /login [zai-coding-plan|bigmodel-coding-plan|zai-coding-plan-api-key <api-key>|bigmodel-coding-plan-api-key <api-key>]",
+            "Usage: /login [chatgpt|zai-coding-plan|bigmodel-coding-plan|zai-coding-plan-api-key <api-key>|bigmodel-coding-plan-api-key <api-key>]",
         };
       }
 
       if (command.name === "logout") {
+        if (command.args === "chatgpt") {
+          if (!deps.logoutChatGpt) {
+            return {
+              mode: deps.getMode?.(),
+              response: "ChatGPT logout is not available in this client.",
+            };
+          }
+          const result = await deps.logoutChatGpt();
+          return {
+            mode: deps.getMode?.(),
+            response: formatChatGptLogoutResult(result),
+          };
+        }
         if (command.args.length > 0) {
           return {
             mode: deps.getMode?.(),
-            response: "Usage: /logout",
+            response: "Usage: /logout [chatgpt]",
           };
         }
         if (!deps.logout) {

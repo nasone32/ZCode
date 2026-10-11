@@ -6,6 +6,7 @@ import {
   ModelOptionSpecsConfig,
   ModelOutputFormatConfig,
   ModelPropertiesConfig,
+  OpenAiOAuthAccessConfig,
   ProviderApiConfig,
   ProviderConfig,
   ZhipuAccountAccessConfig,
@@ -29,6 +30,8 @@ import { createTestModelProperties } from "./test-model-format.js";
 interface LegacyTestProviderConfig {
   readonly apiKey?: string;
   readonly baseURL?: string;
+  /** ChatGPT 计划用量（openai-oauth）：apiKey 改由 requestAuth 动态提供。 */
+  readonly chatGptOAuth?: boolean;
   readonly createLanguageModel?: (modelId: string) => unknown;
   readonly accountMode?: ZhipuAccountMode;
   readonly headers?: Readonly<Record<string, string>>;
@@ -102,6 +105,9 @@ export class TestProviderConfigFixture {
     return bound.resolveRequest({
       options: { reasoningLevel: "disabled", ...options },
       ...(source.accountMode && source.apiKey ? { requestAuth: { apiKey: source.apiKey } } : {}),
+      ...(source.chatGptOAuth
+        ? { requestAuth: { apiKey: source.apiKey ?? "chatgpt-oauth-access-token" } }
+        : {}),
     });
   }
 
@@ -249,14 +255,16 @@ function toRegistryProviderConfig(
         ? "openai-responses"
         : "openai-chat-completions";
   return new ProviderConfig({
-    access: effectiveAccountMode
-      ? new ZhipuAccountAccessConfig({
-          accountType: "zai",
-          mode: effectiveAccountMode,
-        })
-      : source.apiKey
-        ? new ApiKeyAccessConfig({ apiKey: source.apiKey })
-        : new ApiKeyAccessConfig({ apiKey: "test-api-key" }),
+    access: source.chatGptOAuth
+      ? new OpenAiOAuthAccessConfig({ entitled: true })
+      : effectiveAccountMode
+        ? new ZhipuAccountAccessConfig({
+            accountType: "zai",
+            mode: effectiveAccountMode,
+          })
+        : source.apiKey
+          ? new ApiKeyAccessConfig({ apiKey: source.apiKey })
+          : new ApiKeyAccessConfig({ apiKey: "test-api-key" }),
     api: new ProviderApiConfig({
       baseUrl: source.baseURL ?? "https://adapter.test/v1",
       headers: source.headers,

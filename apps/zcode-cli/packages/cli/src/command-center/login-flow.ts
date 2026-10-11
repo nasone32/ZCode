@@ -11,6 +11,20 @@ export function buildLoginSelection(locale?: string): TuiSelection {
     help: copy.help,
     items: [
       {
+        command: "/login chatgpt",
+        id: "chatgpt",
+        keywords: ["chatgpt", "openai", "oauth", "gpt", "sol"],
+        pending: {
+          cancelStatus: copy.pending.cancelStatus,
+          help: copy.pending.help,
+          primary: copy.options.chatgptOauth.pendingPrimary,
+          secondary: copy.options.chatgptOauth.pendingSecondary,
+          status: copy.pending.status,
+        },
+        primary: copy.options.chatgptOauth.primary,
+        secondary: copy.options.chatgptOauth.secondary,
+      },
+      {
         command: "/login zai-coding-plan",
         id: "zai-coding-plan",
         keywords: ["zai", "oauth", "coding", "plan"],
@@ -98,6 +112,40 @@ export function formatLoginResult(result: CommandCenterLoginResult): string {
     `Model: ${result.model}`,
     `Credentials: ${result.credentialsPath}`,
     `Model selection: ${result.configPath}${browserNote}`,
+  ].join("\n");
+}
+
+export function formatChatGptLoginResult(result: {
+  account: { subject: string; email?: string; name?: string };
+  browser?: { opened: boolean; reason?: string };
+  credentialsPath: string;
+  models: readonly { slug: string; display_name: string }[];
+}): string {
+  const label = result.account.email || result.account.name || result.account.subject;
+  const browserNote =
+    result.browser && !result.browser.opened
+      ? `\nBrowser open failed: ${result.browser.reason ?? "unknown error"} — open the URL above manually.`
+      : "";
+  const modelList = result.models.map((model) => model.slug).join(", ");
+
+  return [
+    `Signed in with ChatGPT as ${label}.`,
+    ...(modelList ? [`Models: ${modelList}`] : []),
+    `Credentials: ${result.credentialsPath}`,
+    "Pick a model with /model — GPT Sol and other authorized models are listed under ChatGPT.",
+    "Usage follows your ChatGPT plan limits: https://chatgpt.com/settings/usage" + browserNote,
+  ].join("\n");
+}
+
+export function formatChatGptLogoutResult(result: {
+  credentialsPath: string;
+  revoked: boolean;
+}): string {
+  return [
+    `Logged out from ChatGPT. Credentials: ${result.credentialsPath}`,
+    result.revoked
+      ? "The renewable session was revoked on the OpenAI side."
+      : "Note: remote session revocation failed; disconnect the app in ChatGPT Settings if needed.",
   ].join("\n");
 }
 

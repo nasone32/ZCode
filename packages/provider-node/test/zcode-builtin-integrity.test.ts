@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import {
   ApiKeyAccessConfig,
   ModelConfigRules,
+  OpenAiOAuthAccessConfig,
   ProviderConfig,
   ProviderApiConfig,
   ProviderConfigMap,
@@ -542,6 +543,7 @@ describe("ZCode Built-in Provider Config 完整性", () => {
         "account:bigmodel-offpeak-idle-plan",
         "account:zai-highspeed-card",
         "account:bigmodel-highspeed-card",
+        "account:chatgpt",
       ]);
       expect(snapshot.providerTemplates?.keys()).toEqual([
         "zai-api",
@@ -945,6 +947,14 @@ describe("ZCode Built-in Provider Config 完整性", () => {
             }),
           ]);
         }
+        if (provider.access?.type === "openai-oauth") {
+          accountProviders.push([
+            providerId,
+            new ProviderConfig({
+              access: new OpenAiOAuthAccessConfig({ entitled: true }),
+            }),
+          ]);
+        }
       }
 
       for (const [templateId, template] of snapshot.providerTemplates?.entries() ?? []) {
@@ -1003,6 +1013,7 @@ describe("ZCode Built-in Provider Config 完整性", () => {
         "account:bigmodel-offpeak-idle-plan",
         "account:zai-highspeed-card",
         "account:bigmodel-highspeed-card",
+        "account:chatgpt",
         "template:zai-api",
         "template:zai-standard-api",
         "template:bigmodel-api",

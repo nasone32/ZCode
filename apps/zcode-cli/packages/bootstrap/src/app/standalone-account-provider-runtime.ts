@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import {
   createCodingPlanApiKeyResolver,
+  readChatGptAccountProviderOverlay,
   SHARED_ZCODE_CREDENTIAL_KEYS,
   type SharedZCodeCredentialStore,
 } from "@zcode/adapters/auth";
+import { CHATGPT_PROVIDER_ID } from "@zcode/shared";
 import { createNodeHttpClientAdapter } from "@zcode/adapters/http";
 import { createConfig } from "@zcode/adapters/config";
 import type { ProviderRuntimeHeadersPort } from "@zcode/core";
@@ -39,10 +41,13 @@ async function readStandaloneCodingPlanCatalog(
 ): Promise<{
   readonly zcodeBuiltinRevision: string;
   readonly providers: readonly StandaloneCodingPlanProvider[];
+  /** 完整 Built-in Provider 表（含非 zhipu 账号型，如 ChatGPT OAuth）。 */
+  readonly builtinProviders: ProviderConfigMap;
 }> {
   if (config)
     return {
       zcodeBuiltinRevision: config.revision,
+      builtinProviders: config.providers,
       providers: config.providers.entries().flatMap(([providerId, provider]) => {
         const access = provider.access;
         const modelId = provider.builtinModelIds?.find((candidate) => candidate.trim())?.trim();
@@ -153,31 +158,42 @@ export async function readStandaloneAccountProviderConfigSnapshot(
   const candidateByProviderId = new Map(
     candidates.map((candidate) => [candidate.providerId, candidate]),
   );
-  const providers = new ProviderConfigMap(
-    configuredProviders.map(({ family, providerId }) => {
-      const candidate = candidateByProviderId.get(providerId);
-      const source = sources[standaloneAccountAuthSourceCredentialKey(providerId)];
-      const requestCredentialKey =
-        source === "manual" ? candidate?.credentialKey : oauthCredentialKey(family);
-      const authorized = Boolean(requestCredentialKey && credentials[requestCredentialKey]?.trim());
-      if (!candidate || !authorized) {
-        // Bug 根因：账号 Overlay 缺少成员表示“不覆盖”，不能表达账号已断开；必须显式
-        // entitled=false，才能让 Built-in 账号 Provider 在凭据删除后从 Registry 退出。
-        return [
-          providerId,
-          new ProviderConfig({
-            access: new ZhipuAccountAccessConfig({ entitled: false }),
-          }),
-        ] as const;
-      }
+  const { builtinProviders } = catalog;
+  const providerEntries = configuredProviders.map(({ family, providerId }): readonly [
+    string,
+    ProviderConfig,
+  ] => {
+    const candidate = candidateByProviderId.get(providerId);
+    const source = sources[standaloneAccountAuthSourceCredentialKey(providerId)];
+    const requestCredentialKey =
+      source === "manual" ? candidate?.credentialKey : oauthCredentialKey(family);
+    const authorized = Boolean(requestCredentialKey && credentials[requestCredentialKey]?.trim());
+    if (!candidate || !authorized) {
+      // Bug 根因：账号 Overlay 缺少成员表示“不覆盖”，不能表达账号已断开；必须显式
+      // entitled=false，才能让 Built-in 账号 Provider 在凭据删除后从 Registry 退出。
       return [
         providerId,
         new ProviderConfig({
-          access: new ZhipuAccountAccessConfig({ entitled: true }),
+          access: new ZhipuAccountAccessConfig({ entitled: false }),
         }),
       ] as const;
-    }),
-  );
+    }
+    return [
+      providerId,
+      new ProviderConfig({
+        access: new ZhipuAccountAccessConfig({ entitled: true }),
+      }),
+    ] as const;
+  });
+  // ChatGPT（openai-oauth）与 zhipu 账号同层：entitlement 与模型列表来自本机
+  // 加密凭据（token 记录 + /v1/models 缓存）；未登录时显式 entitled=false fail-closed。
+  if (builtinProviders.has(CHATGPT_PROVIDER_ID)) {
+    const chatGptOverlay = await readChatGptAccountProviderOverlay(credentialStore);
+    if (chatGptOverlay) {
+      providerEntries.push([CHATGPT_PROVIDER_ID, chatGptOverlay] as const);
+    }
+  }
+  const providers = new ProviderConfigMap(providerEntries);
   return createAccountProviderConfigSnapshot(catalog.zcodeBuiltinRevision, providers);
 }
 

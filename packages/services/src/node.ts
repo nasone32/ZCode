@@ -392,6 +392,7 @@ import { readLegacyZCodeConfigProviders } from "./model-provider/legacyZCodeConf
 import { resolveAccountTeamPlanRuntimeMaterial } from "./model-provider/accountProviderTeamPlanRequestKey.js";
 import { createAccountProviderCredentialStore } from "./model-provider/accountProviderCredentialStore.js";
 import { createAccountProviderCredentialService } from "./model-provider/accountProviderCredentialService.js";
+import { createChatGptAwareAccountProviderSource } from "./model-provider/chatGptAccountProjection.js";
 import { createAccountProviderRequestAuthService } from "./model-provider/accountProviderRequestAuthService.js";
 import {
   createAccountProviderConfigSource,
@@ -1423,7 +1424,7 @@ export function createLocalServices(options: {
     // Repository 仅在新 Personal 配置不存在时导入，并保留旧文件以便回滚。
     readLegacyProviders: () => readLegacyZCodeConfigProviders(),
   });
-  const accountProviderConfigSource = createAccountProviderConfigSource({
+  const zhipuAccountProviderConfigSource = createAccountProviderConfigSource({
     configSource: providerConfigRuntime.configService,
     readSettings: readAccountProviderSettings,
     async loadCodingPlanApiKey(providerId, family, accountIdentity, forceRefresh) {
@@ -1440,6 +1441,15 @@ export function createLocalServices(options: {
       apiClient,
       credentialService,
     }),
+  });
+  // ChatGPT（openai-oauth）是本机凭据事实：把 entitlement + /v1/models 缓存投影进
+  // Host Account Source（桌面模型列表、默认选择与推送 agent 的快照都经此生效）。
+  // CLI `zcode login chatgpt` 落盘后由凭据文件 watcher 热刷新，无需重启桌面。
+  const accountProviderConfigSource = createChatGptAwareAccountProviderSource({
+    source: zhipuAccountProviderConfigSource,
+    loadCredential: (key) => credentialService.load(key),
+    configSource: providerConfigRuntime.configService,
+    credentialFilePath: resolveCredentialFilePath(resolveAppConfigDir()),
   });
   const accountProviderRuntimeLog = createServiceLogger("account-provider-runtime");
   const modelSelectionConfiguredDefaultSource = new NodeModelSelectionConfigRepository({
@@ -2672,7 +2682,7 @@ export function createLocalServices(options: {
       createProviderProvisioningTarget({
         providerRuntime,
         personalRepository: providerConfigRuntime.personalRepository,
-        accountProviderSource: accountProviderConfigSource,
+        accountProviderSource: zhipuAccountProviderConfigSource,
         credentialService,
         settingService,
         personalConfigFilePath: join(resolveAppConfigDir(), PERSONAL_PROVIDER_CONFIG_FILE_NAME),

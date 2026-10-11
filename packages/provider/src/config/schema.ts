@@ -1,9 +1,14 @@
 import { z } from "zod";
 import { modelConfigDataSchema } from "@zcode/shared/model-config";
-import { providerConfigDataSchema, zhipuAccountAccessDataSchema } from "./provider-data-schema.js";
+import {
+  openAiOAuthAccessDataSchema,
+  providerConfigDataSchema,
+  zhipuAccountAccessDataSchema,
+} from "./provider-data-schema.js";
 import { ModelConfig, ModelConfigRules } from "./model-config.js";
 import {
   ApiKeyAccessConfig,
+  OpenAiOAuthAccessConfig,
   ProviderApiConfig,
   ProviderConfig,
   ProviderConfigMap,
@@ -26,7 +31,15 @@ import {
 const accountProviderConfigSchema = providerConfigDataSchema
   .pick({ builtinModelIds: true })
   .extend({
-    access: zhipuAccountAccessDataSchema.pick({ type: true, entitled: true }).nullable().optional(),
+    // Account 信封承载的是运行时账号事实：zhipu 账号（entitled）与 ChatGPT
+    // OAuth（openai-oauth，本机凭据投影）两种 Access 形态都必须可往返。
+    access: z
+      .discriminatedUnion("type", [
+        zhipuAccountAccessDataSchema.pick({ type: true, entitled: true }),
+        openAiOAuthAccessDataSchema.pick({ type: true, entitled: true }),
+      ])
+      .nullable()
+      .optional(),
   });
 
 export function parseProviderConfigMap(input: unknown): ProviderConfigMap {
@@ -148,9 +161,11 @@ function createProviderConfig(config: z.infer<typeof providerConfigDataSchema>):
     access:
       config.access == null
         ? config.access
-        : config.access.type !== "zhipu-account"
-          ? new ApiKeyAccessConfig(config.access)
-          : new ZhipuAccountAccessConfig(config.access),
+        : config.access.type === "zhipu-account"
+          ? new ZhipuAccountAccessConfig(config.access)
+          : config.access.type === "openai-oauth"
+            ? new OpenAiOAuthAccessConfig(config.access)
+            : new ApiKeyAccessConfig(config.access),
     api: config.api == null ? config.api : new ProviderApiConfig(config.api),
   });
 }

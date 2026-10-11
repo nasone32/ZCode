@@ -129,6 +129,12 @@ Slash Commands:
           primary: "Z.AI Coding Plan",
           secondary: "打开浏览器登录，并创建 Coding Plan API key。",
         },
+        chatgptOauth: {
+          pendingPrimary: "等待 ChatGPT 授权",
+          pendingSecondary: "请在浏览器里完成登录。授权完成后会继续配置。",
+          primary: "使用 ChatGPT 继续",
+          secondary: "在 ZCode 中使用 ChatGPT Plus/Pro 订阅，无需 API key。",
+        },
       },
       pending: {
         cancelStatus: "已取消登录。请选择配置方式。",

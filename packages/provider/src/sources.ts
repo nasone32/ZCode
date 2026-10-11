@@ -1,4 +1,5 @@
 import {
+  OpenAiOAuthAccessConfig,
   ProviderConfig,
   ProviderConfigMap,
   ProviderTemplateMap,
@@ -46,7 +47,16 @@ export function createFailClosedAccountProviderConfigSnapshot(
               }),
             ],
           ] as const)
-        : [],
+        : provider.access?.type === "openai-oauth"
+          ? ([
+              [
+                providerId,
+                new ProviderConfig({
+                  access: new OpenAiOAuthAccessConfig({ entitled: false }),
+                }),
+              ],
+            ] as const)
+          : [],
     ),
   );
   return createAccountProviderConfigSnapshot(config.zcodeBuiltinRevision, unentitledProviders);

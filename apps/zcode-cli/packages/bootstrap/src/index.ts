@@ -18,6 +18,7 @@ export type {
   ZCodeModelOption,
 } from "./app/types.js";
 export * from "./auth-login.js";
+export * from "./chatgpt-login.js";
 export {
   inspectZCodeCustomCommand,
   listZCodeCustomCommands,

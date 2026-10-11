@@ -74,6 +74,12 @@ export interface TuiCopy {
         primary: string;
         secondary: string;
       };
+      chatgptOauth: {
+        pendingPrimary: string;
+        pendingSecondary: string;
+        primary: string;
+        secondary: string;
+      };
     };
     pending: {
       cancelStatus: string;

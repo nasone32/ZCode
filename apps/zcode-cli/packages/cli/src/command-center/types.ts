@@ -172,6 +172,30 @@ export type CommandCenterBigmodelLoginResult = {
   providerId: "bigmodel";
 };
 
+export type CommandCenterChatGptLoginOptions = {
+  abortSignal?: AbortSignal;
+  onAuthorizeUrl?: (data: { authorize_url: string }) => Promise<void> | void;
+};
+
+export type CommandCenterChatGptLoginResult = {
+  account: {
+    subject: string;
+    email?: string;
+    name?: string;
+  };
+  browser?: {
+    opened: boolean;
+    reason?: string;
+  };
+  credentialsPath: string;
+  models: readonly { slug: string; display_name: string }[];
+};
+
+export type CommandCenterChatGptLogoutResult = {
+  credentialsPath: string;
+  revoked: boolean;
+};
+
 export type CommandCenterApiKeyOptions = {
   apiKey: string;
   providerId: "bigmodel" | "zai";
@@ -311,6 +335,10 @@ export type CommandCenterDeps = {
   loginBigmodel?: (
     options?: CommandCenterBigmodelLoginOptions,
   ) => Promise<CommandCenterBigmodelLoginResult>;
+  loginChatGpt?: (
+    options?: CommandCenterChatGptLoginOptions,
+  ) => Promise<CommandCenterChatGptLoginResult>;
+  logoutChatGpt?: () => Promise<CommandCenterChatGptLogoutResult>;
   configureApiKey?: (options: CommandCenterApiKeyOptions) => Promise<CommandCenterApiKeyResult>;
   loadCustomCommand?: (name: string) => Promise<CommandCenterCustomCommandContent>;
   newApp?: () => Promise<CommandCenterApp>;

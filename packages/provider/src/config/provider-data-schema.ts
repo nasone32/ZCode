@@ -10,6 +10,7 @@ export const providerGroupDataSchema = z.enum([
   "standard-personal",
   "zai-family",
   "bigmodel-family",
+  "openai-family",
 ]);
 export const zhipuAccountModeDataSchema = z.enum([
   "start-plan",
@@ -54,13 +55,28 @@ export const zhipuAccountAccessDataSchema = z
     type: completeZhipuAccountAccessDataSchema.shape.type,
   })
   .strict();
+/** Sign in with ChatGPT（OpenAI token sharing）账号型访问；entitlement 由本机凭据状态决定。 */
+export const completeOpenAiOAuthAccessDataSchema = z
+  .object({
+    type: z.literal("openai-oauth"),
+    entitled: z.boolean(),
+  })
+  .strict();
+export const openAiOAuthAccessDataSchema = z
+  .object({
+    ...sparseShape(completeOpenAiOAuthAccessDataSchema.shape),
+    type: completeOpenAiOAuthAccessDataSchema.shape.type,
+  })
+  .strict();
 export const providerAccessDataSchema = z.discriminatedUnion("type", [
   apiKeyAccessDataSchema,
   zhipuAccountAccessDataSchema,
+  openAiOAuthAccessDataSchema,
 ]);
 export const completeProviderAccessDataSchema = z.discriminatedUnion("type", [
   completeApiKeyAccessDataSchema,
   completeZhipuAccountAccessDataSchema,
+  completeOpenAiOAuthAccessDataSchema,
 ]);
 
 export const completeProviderApiDataSchema = z

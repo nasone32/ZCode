@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 31,
+  "revision": 932,
   "config": {
     "providerConfigRules": {
       "templateRules": [
@@ -905,6 +905,36 @@
               "key": "bigmodel"
             }
           }
+        }        ,
+        {
+          "providerId": "account:chatgpt",
+          "providerName": "ChatGPT",
+          "config": {
+            "group": "openai-family",
+            "builtinModelIds": [
+              "gpt-6.1-sol",
+              "gpt-6.1-sol-fast",
+              "gpt-6-astra",
+              "gpt-6-sol",
+              "gpt-6-luna",
+              "gpt-5.6-sol",
+              "gpt-5.6-terra",
+              "gpt-5.6-luna",
+              "gpt-5.5",
+              "gpt-5.5-fast"
+            ],
+            "access": {
+              "type": "openai-oauth"
+            },
+            "api": {
+              "type": "openai-responses",
+              "baseUrl": "https://api.openai.com/v1"
+            },
+            "logo": {
+              "type": "builtin",
+              "key": "openai"
+            }
+          }
         }
       ]
     },
@@ -1486,6 +1516,91 @@
               "maxOutputTokens": {
                 "max": 128000
               }
+            }
+          }
+        }        ,
+        {
+          "modelMatch": ".*gpt-6\\.1-sol(?:[.\\-:/\\[].*)?",
+          "config": {
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsImage": true,
+                "supportsVideo": false,
+                "supportsAudio": false,
+                "supportsPdf": true
+              },
+              "supportsJsonSchemaOutput": true
+            },
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max"]
+              },
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
+          }
+        },
+        {
+          "modelMatch": ".*gpt-6\\.1-sol-fast(?:[.\\-:/\\[].*)?",
+          "config": {
+            "properties": {
+              "contextWindow": 400000
+            }
+          }
+        },
+        {
+          "modelMatch": ".*gpt-6-(?:sol|luna)(?:[.\\-:/\\[].*)?",
+          "config": {
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsImage": true,
+                "supportsVideo": false,
+                "supportsAudio": false,
+                "supportsPdf": true
+              },
+              "supportsJsonSchemaOutput": true
+            },
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max"]
+              },
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
+          }
+        },
+        {
+          "modelMatch": ".*gpt-5\\.5(?:[.\\-:/\\[].*)?",
+          "config": {
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsImage": true,
+                "supportsVideo": false,
+                "supportsAudio": false,
+                "supportsPdf": true
+              },
+              "supportsJsonSchemaOutput": true
+            },
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["none", "low", "medium", "high", "xhigh"]
+              },
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
+          }
+        },
+        {
+          "modelMatch": ".*gpt-5\\.5-fast(?:[.\\-:/\\[].*)?",
+          "config": {
+            "properties": {
+              "contextWindow": 400000
             }
           }
         },
@@ -6175,6 +6290,77 @@
         }
       ],
       "builtinProviderModelRules": [
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-6.1-sol",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-6.1-sol-fast",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-6-astra",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-6-sol",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-6-luna",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-5.6-sol",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-5.6-terra",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-5.6-luna",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-5.5",
+          "config": {
+            "enabled": true
+          }
+        },
+        {
+          "providerId": "account:chatgpt",
+          "modelId": "gpt-5.5-fast",
+          "config": {
+            "enabled": true
+          }
+        },
+
         {
           "providerId": "account:zai-individual-coding-plan",
           "modelId": "GLM-5.3",

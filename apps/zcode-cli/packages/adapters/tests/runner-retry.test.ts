@@ -86,6 +86,29 @@ describe("toAdapterError attribution context", () => {
     });
   });
 
+  it("attributes signer-disposed failures to the runtime and keeps them retryable", () => {
+    class ClientRequestSigningV4ErrorSimulato extends Error {
+      constructor() {
+        super("Client request signer has been disposed.");
+        this.name = "ClientRequestSigningV4Error";
+      }
+    }
+    const signer = new ClientRequestSigningV4ErrorSimulato();
+    const wrapped = new AiSdkModelAdapterError(
+      ModelErrorCode.ModelRequestFailed,
+      "Model request failed.",
+      { cause: signer },
+    );
+    const failure = classifyModelFailure(wrapped);
+    const error = toAdapterError(wrapped, failure, statusContext, 1, {
+      errorPhase: "stream",
+    });
+    expect(error.context).toMatchObject({
+      retryable: true,
+      source: "runtime",
+    });
+  });
+
   it("attributes non-retryable TLS failures to the network", () => {
     const cause = Object.assign(new Error("TLS validation failed for the provider request."), {
       code: "MODEL_TLS_VALIDATION_FAILED",

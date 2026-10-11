@@ -1,11 +1,14 @@
 import {
   AccountProviderService,
+  createAccountProviderConfigSnapshot,
   MutableAccountProviderConfigSource,
   parseAccountProviderConfigMap,
+  ProviderConfigMap,
   type AccountProviderConfigSnapshot,
   type AccountProviderStates,
 } from "@zcode/provider";
 import {
+  CHATGPT_PROVIDER_ID,
   isBuiltinModelProviderId,
   resolveRuntimeZCodeEndpointOrigin,
   ZCODE_VERSION,
@@ -22,6 +25,7 @@ import {
 } from "@zcode/provider-node";
 import {
   createSharedZCodeCredentialStore,
+  readChatGptAccountProviderOverlay,
   type SharedZCodeCredentialStore,
 } from "@zcode/adapters/auth";
 import { readLegacyCliPersonalProviderConfig } from "./legacy-cli-personal-provider-config-importer.js";
@@ -55,6 +59,27 @@ export async function startProcessProviderRegistryRuntime(
   const credentialStore = options.standalone
     ? (options.standalone.credentialStore ?? createSharedZCodeCredentialStore({ env: { ...env } }))
     : undefined;
+  // ChatGPT（openai-oauth）凭据是本机事实而非 Host 账号态：无论 standalone 还是
+  // Host 托管，都需要把 entitlement/models 投影进第三层 Account Overlay。
+  const chatGptOverlayStore = credentialStore ?? createSharedZCodeCredentialStore({ env: { ...env } });
+  const applyChatGptOverlay = async (
+    snapshot: AccountProviderConfigSnapshot,
+  ): Promise<AccountProviderConfigSnapshot> => {
+    // 只有当前 Built-in 实际声明了 ChatGPT Provider 时才投影；否则保持 Host 快照
+    // 原样（revision 不变），托管 Worker 的账号交付语义不受本机登录态影响。
+    const config = await runtime.configService.read();
+    if (!config.zcodeBuiltinProviders.has(CHATGPT_PROVIDER_ID)) return snapshot;
+    const chatGptOverlay = await readChatGptAccountProviderOverlay(chatGptOverlayStore);
+    if (!chatGptOverlay) return snapshot;
+    const providers = snapshot.providers.set(CHATGPT_PROVIDER_ID, chatGptOverlay);
+    return createAccountProviderConfigSnapshot(
+      snapshot.basedOnZCodeBuiltinRevision,
+      providers,
+      snapshot.states,
+    );
+  };
+  // Host 模式：记录最近一次 Host 快照，凭据变化时重投影 ChatGPT Overlay。
+  let lastHostAccountSnapshot: AccountProviderConfigSnapshot | undefined;
   let standaloneAccount: AccountProviderService | undefined;
   const bundledFile = options.standalone
     ? env[ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV]?.trim()
@@ -147,6 +172,18 @@ export async function startProcessProviderRegistryRuntime(
     await standaloneAccount!.refresh("standalone-credentials-changed");
     await runtime.registryService.refresh("standalone-credentials-barrier");
   });
+  // Host 模式没有 standalone Account Service；ChatGPT 凭据变化需要在此重投影
+  // 最近一次 Host 快照并刷新 Registry，否则桌面托管进程看不到 login/logout。
+  const disposeChatGptOverlaySubscription = credentialStore
+    ? undefined
+    : chatGptOverlayStore.onDidChange?.(async () => {
+        const hostSnapshot = lastHostAccountSnapshot;
+        if (!hostSnapshot) return;
+        const next = await applyChatGptOverlay(hostSnapshot);
+        if (accountSource.replace(next, "chatgpt-credentials-changed")) {
+          await runtime.registryService.refresh("chatgpt-credentials-changed");
+        }
+      });
   try {
     await runtime.start();
     const snapshot = runtime.registryService.getSnapshot()!;
@@ -160,13 +197,16 @@ export async function startProcessProviderRegistryRuntime(
         async syncAccountProviderConfig(next: AccountProviderConfigSnapshot): Promise<boolean> {
           if (standaloneAccount)
             throw new Error("Standalone Account 由本进程管理，不接收 Host 覆盖");
-          const changed = accountSource.replace(next, "host-account-config");
+          lastHostAccountSnapshot = next;
+          const withChatGptOverlay = await applyChatGptOverlay(next);
+          const changed = accountSource.replace(withChatGptOverlay, "host-account-config");
           // Source 去重只证明收过，不证明上次刷新成功。重交时仍刷新；配套配置未到
           // 则由 Registry 保留完整旧快照，不能把接收确认冒充应用确认。
           await runtime.registryService.refresh("host-account-config");
           return changed;
         },
         dispose() {
+          disposeChatGptOverlaySubscription?.();
           disposeCredentialSubscription?.();
           standaloneHeaders?.clearProjectTokens();
           disposeRecovery?.();
@@ -185,11 +225,13 @@ export async function startProcessProviderRegistryRuntime(
         configuredDefaultModelSelection,
       });
     } catch (error) {
+      disposeChatGptOverlaySubscription?.();
       disposeCredentialSubscription?.();
       modelSelectionConfigRepository.dispose();
       throw error;
     }
   } catch (error) {
+    disposeChatGptOverlaySubscription?.();
     disposeCredentialSubscription?.();
     disposeRecovery?.();
     standaloneAccount?.dispose();

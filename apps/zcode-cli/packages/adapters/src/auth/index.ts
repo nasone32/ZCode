@@ -1,5 +1,6 @@
 export * from "./bigmodel-oauth.js";
 export * from "./browser.js";
+export * from "./chatgpt/index.js";
 export * from "./coding-plan-api-key.js";
 export * from "./cli-oauth.js";
 export * from "./credential-cipher.js";
